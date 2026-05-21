@@ -1,0 +1,26 @@
+input:
+  raw_csv_path: data/raw/merged_pheno_sample.csv
+  processed_csv_path: data/processed/plots.csv
+
+columns:
+  plot_id: Field Location
+  year: Year
+  latitude: Latitude
+  longitude: Longitude
+  plot_area_ha: Plot Area
+
+preprocess:
+  min_year: 2017
+  area_unit: ha
+  aggregate_level: site_year
+
+
+earth_engine:
+  project_env: EE_PROJECT
+  collection: GOOGLE/SATELLITE_EMBEDDING/V1/ANNUAL
+  scale_meters: 10
+
+output:
+  embeddings_path: data/outputs/plot_area_embeddings.csv
+  report_path: data/outputs/plot_area_summary.csv
+
