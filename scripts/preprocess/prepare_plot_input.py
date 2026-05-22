@@ -8,11 +8,12 @@ import yaml
 
 
 REQUIRED_CONFIG_COLUMNS = [
-    "plot_id",
+    "site_id",
+    "plot_number",
     "year",
     "latitude",
     "longitude",
-    "plot_area_ha",
+    "plot_area_km2",
 ]
 
 
@@ -41,7 +42,7 @@ def validate_columns(df: pd.DataFrame, column_map: dict) -> None:
 
 
 def prepare_input(config_path: Path) -> None:
-    """Prepare raw G2F phenotype data into site-year rows for AlphaEarth extraction."""
+    """Prepare raw G2F phenotype data into plot-level rows for AlphaEarth extraction."""
     config = load_config(config_path)
 
     raw_path = Path(config["input"]["raw_csv_path"])
@@ -60,30 +61,48 @@ def prepare_input(config_path: Path) -> None:
     # 1. Standardize raw columns into pipeline column names.
     # ------------------------------------------------------------------
     out = pd.DataFrame()
-    out["plot_id"] = df[column_map["plot_id"]]
+
+    out["site_id"] = df[column_map["site_id"]]
+    out["plot_number"] = df[column_map["plot_number"]]
     out["year"] = df[column_map["year"]]
     out["latitude"] = df[column_map["latitude"]]
     out["longitude"] = df[column_map["longitude"]]
 
-    # G2F Plot Area appears to be in hectares.
-    # Convert hectares to square meters:
-    # 1 hectare = 10,000 square meters.
-    out["plot_area_ha"] = df[column_map["plot_area_ha"]].astype(float)
-    out["plot_area_m2"] = out["plot_area_ha"] * 10_000
+    # G2F Plot Area is treated as km2.
+    # Convert km2 to square meters:
+    # 1 km2 = 1,000,000 m2.
+    out["plot_area_km2"] = df[column_map["plot_area_km2"]].astype(float)
+    out["plot_area_m2"] = out["plot_area_km2"] * 1_000_000
 
     before = len(out)
 
     # ------------------------------------------------------------------
     # 2. Standardize data types.
     # ------------------------------------------------------------------
-    out["plot_id"] = out["plot_id"].astype(str)
+    out["site_id"] = out["site_id"].astype(str)
+    out["plot_number"] = out["plot_number"].astype(str)
     out["year"] = out["year"].astype(int)
     out["latitude"] = out["latitude"].astype(float)
     out["longitude"] = out["longitude"].astype(float)
+    out["plot_area_km2"] = out["plot_area_km2"].astype(float)
     out["plot_area_m2"] = out["plot_area_m2"].astype(float)
 
     # ------------------------------------------------------------------
-    # 3. Filter to AlphaEarth-supported years.
+    # 3. Create a unique plot ID.
+    #
+    # Plot numbers can repeat across sites and years, so we combine:
+    # site_id + year + plot_number
+    # ------------------------------------------------------------------
+    out["plot_id"] = (
+        out["site_id"]
+        + "_"
+        + out["year"].astype(str)
+        + "_"
+        + out["plot_number"]
+    )
+
+    # ------------------------------------------------------------------
+    # 4. Filter to AlphaEarth-supported years.
     # ------------------------------------------------------------------
     min_year = int(config.get("preprocess", {}).get("min_year", 2017))
     max_year = int(config.get("preprocess", {}).get("max_year", 2024))
@@ -91,11 +110,13 @@ def prepare_input(config_path: Path) -> None:
     out = out[out["year"].between(min_year, max_year)]
 
     # ------------------------------------------------------------------
-    # 4. Drop invalid rows.
+    # 5. Drop invalid rows.
     # ------------------------------------------------------------------
     out = out.dropna(
         subset=[
             "plot_id",
+            "site_id",
+            "plot_number",
             "year",
             "latitude",
             "longitude",
@@ -111,30 +132,27 @@ def prepare_input(config_path: Path) -> None:
 
     after_validation = len(out)
 
-    # ------------------------------------------------------------------
-    # 5. Aggregate tiny G2F plot rows to site-year/environment level.
-    #
-    # Individual G2F plot areas are smaller than one 10m AlphaEarth pixel.
-    # So we generate embeddings at Field Location + Year level instead of
-    # pretending each tiny plot has a separate satellite embedding.
-    # ------------------------------------------------------------------
-    out = (
-        out.groupby(["plot_id", "year"], as_index=False)
-        .agg(
-            latitude=("latitude", "first"),
-            longitude=("longitude", "first"),
-            plot_area_m2=("plot_area_m2", "sum"),
-            plot_area_ha=("plot_area_ha", "sum"),
-            plot_count=("plot_area_m2", "count"),
-        )
-    )
-
     # AlphaEarth pixel is approximately 10m x 10m = 100m2.
     out["expected_pixel_count"] = out["plot_area_m2"] / 100.0
 
+    # Keep columns in a clean order.
+    out = out[
+        [
+            "plot_id",
+            "site_id",
+            "plot_number",
+            "year",
+            "latitude",
+            "longitude",
+            "plot_area_km2",
+            "plot_area_m2",
+            "expected_pixel_count",
+        ]
+    ]
+
     out.to_csv(processed_path, index=False)
 
-    print(f"Saved {len(out)} cleaned site-year rows to {processed_path}")
+    print(f"Saved {len(out)} cleaned plot-level rows to {processed_path}")
     print(f"Dropped {before - after_validation} invalid or unsupported rows")
     print(out.head().to_string(index=False))
 

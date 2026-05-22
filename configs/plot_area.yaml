@@ -3,15 +3,16 @@ input:
   processed_csv_path: data/processed/plots.csv
 
 columns:
-  plot_id: Field Location
+  site_id: Field Location
+  plot_number: Plot
   year: Year
   latitude: Latitude
   longitude: Longitude
-  plot_area_ha: Plot Area
+  plot_area_km2: Plot Area
 
 preprocess:
   min_year: 2017
-  area_unit: ha
+  area_unit: km2
   aggregate_level: site_year
 
 
