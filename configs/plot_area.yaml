@@ -3,18 +3,37 @@ input:
   processed_csv_path: data/processed/plots.csv
 
 columns:
+  plot_id:
   site_id: Field Location
   plot_number: Plot
   year: Year
   latitude: Latitude
   longitude: Longitude
   plot_area_km2: Plot Area
+  plot_area_m2:
+  area_km2:
+  area_m2:
 
 preprocess:
   min_year: 2017
   area_unit: km2
   aggregate_level: site_year
 
+geometry:
+  mode: auto
+  shape: square
+  fixed_windows_m: [30, 50, 100]
+  default_window_m: 50
+  polygon_column:
+
+metadata:
+  preserve_columns:
+    - Yield
+    - Genotype
+    - Hybrid
+    - Treatment
+    - Replicate
+    - Block
 
 earth_engine:
   project_env: EE_PROJECT
@@ -24,4 +43,4 @@ earth_engine:
 output:
   embeddings_path: data/outputs/plot_area_embeddings.csv
   report_path: data/outputs/plot_area_summary.csv
-
+  qc_summary_path: data/outputs/plot_area_embeddings_qc_summary.json
