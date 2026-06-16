@@ -90,7 +90,7 @@ Mean pooling aggregates pixel-level embeddings within plot geometry, producing a
 ### 1. Clone and Install
 
 ```bash
-git clone https://github.com/your-org/g2f-plot-aware-embeddings.git
+git clone https://github.com/KindnessEbeneza/g2f-plot-aware-embeddings.git
 cd g2f-plot-aware-embeddings
 pip install -e .
 ```
